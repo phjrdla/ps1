@@ -28,39 +28,38 @@ temp -dumpfileName dev -estimateOnly Y
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True) ] [string]$oracleSid,
-  [Parameter(Mandatory=$True) ] [string]$schemaOrg,  [Parameter(Mandatory=$True) ] [string]$schemaDes,  [string]$directory= 'DATAPUMP',
+  [Parameter(Mandatory=$True) ] [string]$connectStr,
+  [Parameter(Mandatory=$True) ] [string]$schemaOrg,  [Parameter(Mandatory=$True) ] [string]$schemaDes,  [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [string]$dumpfileName = 'expdp',
+  [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
+  [ValidateSet('NONE','NOCOMPRESS','COMPRESS')] [string]$tableCompressionClause = 'ROW STORE COMPRESS ADVANCED',
   [string]$playOnly = 'Y'
 )
 
 write-host "Parameters are :"
-write-host "     oracleSid is $oracleSid"
-write-host "     schemaOrg is $schemaOrg"
-write-host "     schemaDes is $schemaDes"
-write-host "     directory is $directory"
-write-host "  dumpfileName is $dumpfileName"
-write-host "      playOnly is $playOnly"
+write-host "            connectStr is $connectStr"
+write-host "             schemaOrg is $schemaOrg"
+write-host "             schemaDes is $schemaDes"
+write-host "             directory is $directory"
+write-host "          dumpfileName is $dumpfileName"
+write-host "              playOnly is $playOnly"
+write-host " disableArchiveLogging is $disableArchiveLogging"
+write-host "tableCompressionClause is $tableCompressionClause"
 
 $thisSc
-write-host "ThisScript is $thisScript"
+write-host "ThisScript is $thisScript" 
+$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$cnx = "dp/dpclv@$connectStr"
 
-$env:ORACLE_SID = $oracleSid
- 
-$tstamp = get-date -Format 'yyyyMMdd-hhmmss'
-
-# Set-Location -Path D:\solife-DB\pb
-
-$cnx = "'/ as sysdba'"
-
-$job_name = $schemaDes
+$job_name = 'impdp_' + $schemaDes
 $dumpfile = $dumpfileName + '.dmp'
 $logfile  = $dumpfileName + '_2_' + $schemaDes + '.txt'
 $parfile  = $dumpfileName + '_2_' + $schemaDes + '.par'
 $sqlfile  = $dumpfileName + '_2_' + $schemaDes + '.sql'
 
 Write-Output "$dumpfile"
+Write-Output "job_name is $job_name"
 
 If (Test-Path $parfile){
   Remove-Item $parfile
@@ -77,6 +76,8 @@ LOGFILE=$logfile
 REMAP_SCHEMA=$schemaOrg`:$schemaDes
 TABLE_EXISTS_ACTION=TRUNCATE
 LOGTIME=ALL
+TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
+TRANSFORM=TABLE_COMPRESSION_CLAUSE:$tableCompressionClause
 "@
 }
 else {
@@ -93,6 +94,15 @@ LOGTIME=ALL
 }
 
 write-host "parfile is $parfile"
-
 $parfile_txt | Out-File $parfile -encoding ascii
+write-host "impdp parameter file content"
+gc $parfile
 impdp $cnx parfile=$parfile
+
+if ( $playOnly -eq 'N' ) {
+  $sql = @"
+    set timing on
+    execute dbms_stats.gather_schema_stats('$schemaDes', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER AUTO', no_invalidate=>False );
+"@
+  $sql | sqlplus -S $cnx
+}

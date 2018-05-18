@@ -27,38 +27,32 @@ To run impdp without creating anything. Default is Y.
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True) ] [string]$oracleSid,
+  [Parameter(Mandatory=$True) ] [string]$connectStr,
   [Parameter(Mandatory=$True) ] [string]$schema,  [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
   [string]$dumpfileName = 'expdp',
   [string]$playOnly = 'Y'
 )
 
 write-host "Parameters are :"
-write-host "     oracleSid is $oracleSid"
+write-host "    connectStr is $connStr"
 write-host "        schema is $schema"
 write-host "     directory is $directory"
 write-host "  dumpfileName is $dumpfileName"
 write-host "      parallel is $parallel"
 write-host "      playOnly is $playOnly"
 
-$thisSc
 write-host "ThisScript is $thisScript"
+$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$cnx = "dp/dpclv@$connectStr"
 
-$env:ORACLE_SID = $oracleSid
- 
-$tstamp = get-date -Format 'yyyyMMdd-hhmmss'
-
-# Set-Location -Path D:\solife-DB\pb
-
-$cnx = "'/ as sysdba'"
-
-$job_name      = $schema
-$dumpfile      = $dumpfileName + '_%u.dmp'
-$logfile       = $dumpfileName + '.txt'
-$parfile       = $dumpfileName + '.par'
-$sqlfile       = $dumpfileName + '.sql'
+$job_name = 'impdp_' + $schema
+$dumpfile = $dumpfileName + '_%u.dmp'
+$logfile  = $dumpfileName + '.txt'
+$parfile  = $dumpfileName + '.par'
+$sqlfile  = $dumpfileName + '.sql'
 
 Write-Output "$dumpfile"
+write-output "job_name is $job_name"
 
 If (Test-Path $parfile){
   Remove-Item $parfile
@@ -67,7 +61,7 @@ If (Test-Path $parfile){
 
 if ( $playOnly -eq 'N' ) {
   $parfile_txt = @"
-JOB_NAME=impdp_$schema
+JOB_NAME=$job_name
 DIRECTORY=$directory
 DUMPFILE=$dumpfile
 PARALLEL=$parallel
@@ -91,6 +85,11 @@ LOGTIME=ALL
 }
 
 write-host "parfile is $parfile"
-
 $parfile_txt | Out-File $parfile -encoding ascii
+write-host "impdp parameter file content"
+gc $parfile
 impdp $cnx parfile=$parfile
+
+  $sql = @"
+execute dbms_stats.gather_schema_stats('$schema', options => 'GATHER AUTO', degree=>dbms_stats.default_degree, cascade=>dbms_stats.auto_cascade);
+"@

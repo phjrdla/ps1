@@ -27,12 +27,12 @@ To estimate schema dump size. Default is Y.
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True) ] [string]$oracleSid,
+  [Parameter(Mandatory=$True) ] [string]$connectStr,
   [Parameter(Mandatory=$True) ] [string]$schema,  [int]$parallel = 4,  [string]$directoryName= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
+  [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
   [string]$dumpfileName = 'expdp',
-  [string]$estimateOnly = 'Y',
-  [string]$zipIt = 'N'
+  [string]$estimateOnly = 'Y'
 )
 
 ##########################################################################################################
@@ -62,27 +62,21 @@ return $paf
 ##########################################################################################################
 
 write-host "Parameters are :"
-write-host "     oracleSid is $oracleSid"
+write-host "    connectStr is $connectStr"
 write-host "        schema is $schema"
 write-host " directoryName is $directoryName"
 write-host "  dumpfileName is $dumpfileName"
 write-host "      parallel is $parallel"
 write-host "       content is $content"
 write-host "  estimateOnly is $estimateOnly"
-write-host "         zipIt is $zipIt"
 
 $thisScript = $MyInvocation.MyCommand
 
 write-host "ThisScript is $thisScript"
+$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$cnx = "dp/dpclv@$connectStr"
 
-$env:ORACLE_SID = $oracleSid
- 
-$tstamp = get-date -Format 'yyyyMMdd-hhmmss'
-
-# Set-Location -Path D:\solife-DB\pb
-
-$cnx = '/ as sysdba'
-
+<#
 # Find DATAPUMP directory path 
 [string]$directoryPath = getdirectoryPath $cnx $directoryName
 Write-Host ("`ndirectoryPath is $directoryPath")
@@ -91,18 +85,17 @@ if ( $directoryPath.Length -eq 0 ) {
    Write-Host ("No directoryPath foind for $directoryName")
    exit
 }
+#>
 
-$job_name      = $schema
-$dumpfile      = $dumpfileName + '_%u.dmp'
-$dumpfiles2zip = $directoryPath + '\' +$dumpfileName + '_*.dmp'
-$zipfile       = $directoryPath + '\' + $dumpfileName + '.zip'
-$logfile       = $dumpfileName + '.txt'
-$parfile       = $directoryPath + '\' + $dumpfileName + '.par'
+$job_name     = 'expdp_' + $schema
+$dumpfileName = $dumpfileName + '_' + "$tstamp"
+$dumpfile     = $dumpfileName + '_%u.dmp'
+$logfile      = $dumpfileName + '.txt'
+$parfile      = $dumpfileName + '.par'
 
 Write-Output "$dumpfile"
-Write-Output "$dumpfiles2zip"
-Write-Output "$zipfile"
 Write-Output "$parfile"
+Write-Output "job_name is $job_name"
 
 If (Test-Path $parfile){
   Remove-Item $parfile
@@ -117,6 +110,8 @@ DUMPFILE=$dumpfile
 PARALLEL=$parallel
 CONTENT=$CONTENT
 COMPRESSION=ALL
+COMPRESSION_ALGORITHM=$compressionAlgorithm
+FLASHBACK_TIME=systimestamp
 LOGFILE=$logfile
 REUSE_DUMPFILES=Y
 SCHEMAS=$schema
@@ -130,8 +125,8 @@ else {
 JOB_NAME=$job_name
 DIRECTORY=$directoryName
 PARALLEL=$parallel
-CONTENT=$content
 COMPRESSION=ALL
+FLASHBACK_TIME=systimestamp
 LOGFILE=$logfile
 SCHEMAS=$schema
 KEEP_MASTER=NO
@@ -143,12 +138,7 @@ ESTIMATE_ONLY=YES
 
 write-host "parfile is $parfile"
 $parfile_txt | Out-File $parfile -encoding ascii
-expdp `'$cnx`' parfile=$parfile
+Write-Host "`nexpdp parameter file content"
+gc $parfile
+expdp $cnx parfile=$parfile
 #expdp 2>&1 `'$cnx`' parfile=$parfile | %{ "$_" }
-
-if ( $zipIt -eq 'Y' ) {
-  If ( Test-Path $directoryPath\$dumpfile2zip ) { 
-    write-host "Dump file set is zipped"
-    zip -mv $zipfile $dumpfiles2zip
-  }
-}
