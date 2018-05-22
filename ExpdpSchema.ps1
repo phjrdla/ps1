@@ -30,6 +30,7 @@ To estimate schema dump size. Default is Y.
   [Parameter(Mandatory=$True) ] [string]$connectStr,
   [Parameter(Mandatory=$True) ] [string]$schema,  [string]$directoryName= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
+  [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
   [string]$dumpfileName = 'expdp',
   [string]$estimateOnly = 'Y'
 )
@@ -71,7 +72,7 @@ write-host "  estimateOnly is $estimateOnly"
 $thisScript = $MyInvocation.MyCommand
 
 write-host "ThisScript is $thisScript"
-$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$tstamp = get-date -Format 'yyyyMMddTHHmm'
 $cnx = "dp/dpclv@$connectStr"
  
 <#
@@ -107,14 +108,14 @@ DIRECTORY=$directoryName
 DUMPFILE=$dumpfile
 CONTENT=$CONTENT
 COMPRESSION=ALL
-COMPRESSION_ALGORITHM=MEDIUM
+COMPRESSION_ALGORITHM=$compressionAlgorithm./exp
 FLASHBACK_TIME=systimestamp
 LOGFILE=$logfile
 REUSE_DUMPFILES=Y
 SCHEMAS=$schema
 LOGTIME=ALL
 KEEP_MASTER=NO
-METRICS=N
+METRICS=Y
 "@
 }
 else {
@@ -126,7 +127,7 @@ FLASHBACK_TIME=systimestamp
 LOGFILE=$logfile
 SCHEMAS=$schema
 KEEP_MASTER=NO
-METRICS=N
+METRICS=Y
 LOGTIME=ALL
 ESTIMATE_ONLY=YES
 "@

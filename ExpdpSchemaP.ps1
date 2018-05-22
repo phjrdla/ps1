@@ -73,7 +73,7 @@ write-host "  estimateOnly is $estimateOnly"
 $thisScript = $MyInvocation.MyCommand
 
 write-host "ThisScript is $thisScript"
-$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$tstamp = get-date -Format 'yyyyMMddTHHmm'
 $cnx = "dp/dpclv@$connectStr"
 
 <#
@@ -117,7 +117,7 @@ REUSE_DUMPFILES=Y
 SCHEMAS=$schema
 LOGTIME=ALL
 KEEP_MASTER=NO
-METRICS=N
+METRICS=Y
 "@
 }
 else {
@@ -130,7 +130,7 @@ FLASHBACK_TIME=systimestamp
 LOGFILE=$logfile
 SCHEMAS=$schema
 KEEP_MASTER=NO
-METRICS=N
+METRICS=Y
 LOGTIME=ALL
 ESTIMATE_ONLY=YES
 "@

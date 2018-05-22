@@ -30,6 +30,8 @@ To run impdp without creating anything. Default is Y.
   [Parameter(Mandatory=$True) ] [string]$connectStr,
   [Parameter(Mandatory=$True) ] [string]$schema,  [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
   [string]$dumpfileName = 'expdp',
+  [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
+  [ValidateSet('NONE','NOCOMPRESS','COMPRESS')] [string]$tableCompressionClause = 'NONE',
   [string]$playOnly = 'Y'
 )
 
@@ -42,7 +44,7 @@ write-host "      parallel is $parallel"
 write-host "      playOnly is $playOnly"
 
 write-host "ThisScript is $thisScript"
-$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$tstamp = get-date -Format 'yyyyMMddTHHmm'
 $cnx = "dp/dpclv@$connectStr"
 
 $job_name = 'impdp_' + $schema
@@ -68,7 +70,10 @@ PARALLEL=$parallel
 LOGFILE=$logfile
 SCHEMAS=$schema
 TABLE_EXISTS_ACTION=TRUNCATE
+TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
+TRANSFORM=TABLE_COMPRESSION_CLAUSE:$tableCompressionClause
 LOGTIME=ALL
+METRICS=Y
 "@
 }
 else {
@@ -90,6 +95,11 @@ write-host "impdp parameter file content"
 gc $parfile
 impdp $cnx parfile=$parfile
 
+if ( $playOnly -eq 'N' ) {
+  Write-Output "Recompute statistics for $schema"
   $sql = @"
-execute dbms_stats.gather_schema_stats('$schema', options => 'GATHER AUTO', degree=>dbms_stats.default_degree, cascade=>dbms_stats.auto_cascade);
+    set timing on
+    execute dbms_stats.gather_schema_stats('$schema', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER', no_invalidate=>False );
 "@
+  $sql | sqlplus -S $cnx
+}

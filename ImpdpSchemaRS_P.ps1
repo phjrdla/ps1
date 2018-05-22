@@ -33,7 +33,7 @@ temp -dumpfileName dev -estimateOnly Y
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [string]$dumpfileName = 'expdp',
   [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
-  [ValidateSet('NONE','NOCOMPRESS','COMPRESS')] [string]$tableCompressionClause = 'COMPRESS',
+  [ValidateSet('NONE','NOCOMPRESS','COMPRESS')] [string]$tableCompressionClause = 'NONE',
   [string]$playOnly = 'Y'
 )
 
@@ -48,7 +48,7 @@ write-host "      playOnly is $playOnly"
 
 $thisSc
 write-host "ThisScript is $thisScript"
-$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$tstamp = get-date -Format 'yyyyMMddTHHmm'
 $cnx = "dp/dpclv@$connectStr"
 
 $job_name = 'impdp_' + $schemaDes
@@ -76,6 +76,7 @@ LOGFILE=$logfile
 REMAP_SCHEMA=$schemaOrg`:$schemaDes
 TABLE_EXISTS_ACTION=TRUNCATE
 LOGTIME=ALL
+METRICS=Y
 TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
 TRANSFORM=TABLE_COMPRESSION_CLAUSE:$tableCompressionClause
 "@
@@ -104,7 +105,8 @@ if ( $playOnly -eq 'N' ) {
   Write-Output "Recompute statistics for $schemaDes"
   $sql = @"
     set timing on
-    execute dbms_stats.gather_schema_stats('$schemaDes', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER AUTO', no_invalidate=>False );
+    set echo on
+    execute dbms_stats.gather_schema_stats('$schemaDes', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER', no_invalidate=>False );
 "@
   $sql | sqlplus -S $cnx
 }

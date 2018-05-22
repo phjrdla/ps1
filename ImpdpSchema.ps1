@@ -30,6 +30,8 @@ To run impdp without creating anything. Default is Y.
   [Parameter(Mandatory=$True) ] [string]$connectStr,
   [Parameter(Mandatory=$True) ] [string]$schema,  [string]$directory= 'DATAPUMP',
   [string]$dumpfileName = 'expdp',
+  [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
+  [ValidateSet('NONE','NOCOMPRESS','COMPRESS')] [string]$tableCompressionClause = 'NONE',
   [string]$playOnly = 'Y'
 )
 
@@ -41,7 +43,7 @@ write-host "  dumpfileName is $dumpfileName"
 write-host "      playOnly is $playOnly"
 
 write-host "ThisScript is $thisScript"
-$tstamp = get-date -Format 'yyyyMMddThhmmss'
+$tstamp = get-date -Format 'yyyyMMddTHHmm'
 $cnx = "dp/dpclv@$connectStr"
 
 $job_name      = 'impdp_' + $schema
@@ -66,7 +68,10 @@ DUMPFILE=$dumpfile
 LOGFILE=$logfile
 SCHEMAS=$schema
 TABLE_EXISTS_ACTION=TRUNCATE
+TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
+TRANSFORM=TABLE_COMPRESSION_CLAUSE:$tableCompressionClause
 LOGTIME=ALL
+METRICS=Y
 "@
 }
 else {
@@ -88,9 +93,10 @@ gc $parfile
 impdp $cnx parfile=$parfile
 
 if ( $playOnly -eq 'N' ) {
+  Write-Output "Recompute statistics for $schema"
   $sql = @"
     set timing on
-    execute dbms_stats.gather_schema_stats('$schemaDes', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER AUTO', no_invalidate=>False );
+    execute dbms_stats.gather_schema_stats('$schema', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER', no_invalidate=>False );
 "@
   $sql | sqlplus -S $cnx
 }
