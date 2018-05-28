@@ -32,7 +32,8 @@ To estimate schema dump size. Default is Y.
   [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
   [string]$dumpfileName = 'expdp',
   [ValidateSet('Y','N')] [string]$coherent = 'Y',
-  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y'
+  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y',
+  [ValidateSet('Y','N')] [string]$connAsSys = 'N'
 )
 
 ##########################################################################################################
@@ -69,12 +70,21 @@ write-host "      parallel is $parallel"
 write-host "       content is $content"
 write-host "      coherent is $coherent"
 write-host "  estimateOnly is $estimateOnly"
+write=host "  connectAsSys is $connectAsSys"
 
 $thisScript = $MyInvocation.MyCommand
 
 write-host "ThisScript is $thisScript"
 $tstamp = get-date -Format 'yyyyMMddTHHmm'
-$cnx = "dp/dpclv@$connectStr"
+
+# Define connect string to database
+if ( $connAsSys -eq 'Y' ) {
+  $env:ORACLE_SID = $connectStr
+  $cnx = '''/ as sysdba'''
+}
+else {
+  $cnx = "dp/dpclv@$connectStr"
+}
 
 
 $job_name     = 'expdpfull_' + $connectStr
@@ -132,6 +142,6 @@ write-host "parfile is $parfile"
 $parfile_txt | Out-File $parfile -encoding ascii
 Write-Host "`nexpdp parameter file content"
 gc $parfile
-expdp $cnx parfile=$parfile
+expdp "$cnx" parfile=$parfile
 
 #expdp 2>&1 `'$cnx`' parfile=$parfile | %{ "$_" }
