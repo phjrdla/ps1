@@ -27,12 +27,12 @@ To estimate schema dump size. Default is Y.
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True) ] [string]$connectStr,  [int]$parallel = 4,  [string]$directoryName= 'DATAPUMP',
-  [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
+  [Parameter(Mandatory=$True) ] [string]$connectStr,  [int]$parallel = 4,  [Parameter(Mandatory=$True) ] [string]$directoryName= 'DATAPUMP',
+  [Parameter(Mandatory=$True) ] [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
-  [string]$dumpfileName = 'expdp',
-  [ValidateSet('Y','N')] [string]$coherent = 'Y',
-  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y',
+  [Parameter(Mandatory=$True) ] [string]$dumpfileName = 'expdp',
+  [Parameter(Mandatory=$True) ] [ValidateSet('Y','N')] [string]$coherent = 'Y',
+  [Parameter(Mandatory=$True) ] [ValidateSet('Y','N')] [string]$estimateOnly = 'Y',
   [ValidateSet('Y','N')] [string]$connAsSys = 'N'
 )
 
