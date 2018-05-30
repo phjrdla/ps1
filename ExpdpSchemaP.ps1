@@ -1,43 +1,55 @@
 <#	
 .SYNOPSIS
-ExpdpSchemaP.ps1 does a parallel Datapump export for specified database and schema
+expdpSchemaP.ps1 does a parallel Datapump export for specified instance and schema
 	
 .DESCRIPTION
-ExpdpSchema uses Oracle utility Datapump to perform aschema dump and to zip it. 
+expdpSchemaP.ps1 uses Oracle 12c Datapump export utility expdp in parallel mode. Produces p dumpfiles p being the number of parallel processes. 
+expdpSchemaP.ps1 can run on the server hosting the instance or from a remote server through SQL*NET
 
-.Parameter oracleSid
-oracleSid is mandatatory
+.Parameter connectStr
+SQL*NET string to connect to instance. Mandatory.
 
 .Parameter schema
-Oracle Schema to dump; Mandatory
+Schema to dump. Mandatory.
+
+.Parameter parallel
+number of parallel process for Datapump. Default is 4, min is 1, max is 8.
 
 .Parameter directory
-Datapump directory. Default is DATAPUMP
+Datapump directory. Default is DATAPUMP.
 
-.Parameter directoryPath
-Oracle datapump directory path. Default is Q:\Oracle
+.Parameter content
+Content to export. Possible values are 'ALL','DATA_ONLY','METADATA_ONLY'. Default is 'ALL'.
+
+.Parameter compressionAlgorithm
+Level of export dumps compression. Possible values are 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
 
 .Parameter dumpfileName
-Oracle datapump dump filename. Default is expdp.
+dumps root filename. Default is expdp.
 
 .Parameter estimateOnly
-To estimate schema dump size. Default is Y.
+Estimates the datapump size. No data is dumped. Possible values are 'Y','N'. Default is 'Y'.
 
-.Example ExpdpSchema.ps1 -oracleSid orasolifefev -schema clv61dev -directory datatemp -dumpfileName dev -estimateOnly Y	
+.Example 
+expdpSchemaP -connectStr orcl -schema scott -dumpfileName orcl_scott -estimateOnly Y
+
+.Example
+expdpSchemaP -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dumpFilename orcl_scott -content all -compression high -estimateOnly n	
 #>
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True) ] [string]$connectStr,
-  [Parameter(Mandatory=$True) ] [string]$schema,  [int]$parallel = 4,  [string]$directoryName= 'DATAPUMP',
-  [Parameter(Mandatory=$True) ] [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
+  [Parameter(Mandatory=$True) ] [string]$schema,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directoryName= 'DATAPUMP',
+  [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
-  [Parameter(Mandatory=$True) ] [string]$dumpfileName = 'expdp',
-  [Parameter(Mandatory=$True) ] [ValidateSet('Y','N')] [string]$estimateOnly = 'Y'
+  [string]$dumpfileName = 'expdp',
+  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y'
 )
 
 ##########################################################################################################
 function getDirectoryPath {
   param( $cnx, $directoryName)
+
 
   $thisFunction = '{0}' -f $MyInvocation.MyCommand
   #write-output "`nThis is function $thisFunction"
@@ -140,5 +152,7 @@ write-host "parfile is $parfile"
 $parfile_txt | Out-File $parfile -encoding ascii
 Write-Host "`nexpdp parameter file content"
 gc $parfile
-expdp $cnx parfile=$parfile
-#expdp 2>&1 `'$cnx`' parfile=$parfile | %{ "$_" }
+
+expdp $cnx parfile=$parfile 
+
+#expdp `'$cnx`' parfile=$parfile 2>&1 | % { "$_" }
