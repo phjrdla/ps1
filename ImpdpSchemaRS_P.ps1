@@ -1,19 +1,19 @@
 <#	
 .SYNOPSIS
-impdpSchemaRS_P.ps1 does a parallel Datapump import in parallel with a remap_schema for specified instance and schema
+ImpdpSchemaRS_P.ps1 does a parallel Datapump import in parallel with a remap_schema for specified instance and schema
 	
 .DESCRIPTION
-impdpSchemaRS_P.ps1 uses Oracle 12c Datapump import utility impdp in parallel mode from a set of p dump files created by expdpSchemaP. 
-impdpSchemaRS_P.ps1 can run on the server hosting the instance or from a remote server through SQL*NET. Dumps must be available on the instance server.
+ImpdpSchemaRS_P.ps1 uses Oracle 12c Datapump impdp utility in parallel mode with a set of p expdp dumps created by expdpSchemaP. 
+ImpdpSchemaRS_P.ps1 can run on the server hosting the instance or from a remote server through SQL*NET. Dumps must be available on the instance server.
 
 .Parameter connectStr
 SQL*NET string to connect to instance. Mandatory.
 
 .Parameter schemaOrg
-Schema to remap. Mandatory.
+Schema remapped. Mandatory.
 
 .Parameter schemaDes
-Schema for remap. Mandatory.
+Schema for remapping. Mandatory.
 
 .Parameter parallel
 number of parallel process for Datapump. Default is 4, min is 1, max is 8.
@@ -38,17 +38,17 @@ dumps root filename. Default is expdp.
 to test the import. No data is imported. A sql file of the dump is created. Possible values are 'Y','N'. Default is 'Y'.
 
 .INPUTS
-Datapump export dumps
+Set of p expdp dumps
 
 .OUTPUTS
 Log file in datapump directory
 SQL file in datapump directory when run with playOnly = 'Y'
 
 .Example 
-impdpSchemaRS_P -connectStr orcl -schemaOrg scott -schemaDes bernie -dumpFilename orcl_scott -playOnly n	
+ImpdpSchemaRS_P -connectStr orcl -schemaOrg scott -schemaDes bernie -dumpFilename orcl_scott -playOnly n	
 	
 .Example
-impdpSchemaRS_P -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -directory DUMPTEMP -dumpFilename orcl_scott -content all -disableArchiveLogging Y -tableCompressionClause compress -playOnly n	
+ImpdpSchemaRS_P -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -directory DUMPTEMP -dumpFilename orcl_scott -content all -disableArchiveLogging Y -tableCompressionClause compress -playOnly n	
 
 #>
 
@@ -71,9 +71,11 @@ write-host "  dumpfileName is $dumpfileName"
 write-host "      parallel is $parallel"
 write-host "      playOnly is $playOnly"
 
-$thisSc
+$thisScript = $MyInvocation.MyCommand
 write-host "ThisScript is $thisScript"
 $tstamp = get-date -Format 'yyyyMMddTHHmm'
+
+# Connection to instance
 $cnx = "dp/dpclv@$connectStr"
 
 $job_name = 'impdp_' + $schemaDes

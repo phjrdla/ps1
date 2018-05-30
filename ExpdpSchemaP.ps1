@@ -1,10 +1,10 @@
 <#	
 .SYNOPSIS
-expdpSchemaP.ps1 does a parallel Datapump export for specified instance and schema
+ExpdpSchemaP.ps1 does a parallel Datapump export for specified instance and schema
 	
 .DESCRIPTION
-expdpSchemaP.ps1 uses Oracle 12c Datapump export utility expdp in parallel mode. Produces p dumpfiles p being the number of parallel processes. 
-expdpSchemaP.ps1 can run on the server hosting the instance or from a remote server through SQL*NET
+ExpdpSchemaP.ps1 uses Oracle 12c Datapump expdp utility in parallel mode. Produces p dumps, p being the parallel parameter. 
+ExpdpSchemaP.ps1 can run on the server hosting the instance or from a remote server through SQL*NET
 
 .Parameter connectStr
 SQL*NET string to connect to instance. Mandatory.
@@ -22,19 +22,25 @@ Datapump directory. Default is DATAPUMP.
 Content to export. Possible values are 'ALL','DATA_ONLY','METADATA_ONLY'. Default is 'ALL'.
 
 .Parameter compressionAlgorithm
-Level of export dumps compression. Possible values are 'BASIC', 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
+Level of expdp dumps compression. Possible values are 'BASIC', 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
 
 .Parameter dumpfileName
 dumps root filename. Default is expdp.
 
 .Parameter estimateOnly
-Estimates the datapump size. No data is dumped. Possible values are 'Y','N'. Default is 'Y'.
+Estimates the dump size. No data is dumped. Possible values are 'Y','N'. Default is 'Y'.
+
+.INPUTS
+
+.OUTPUTS
+Log file in datapump directory
+Set of p expdp dumps
 
 .Example 
-expdpSchemaP -connectStr orcl -schema scott -dumpfileName orcl_scott -estimateOnly Y
+ExpdpSchemaP -connectStr orcl -schema scott -dumpfileName orcl_scott -estimateOnly Y
 
 .Example
-expdpSchemaP -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dumpFilename orcl_scott -content all -compression high -estimateOnly n	
+ExpdpSchemaP -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dumpFilename orcl_scott -content all -compression high -estimateOnly n	
 #>
 
 [CmdletBinding()] param(
@@ -46,33 +52,6 @@ expdpSchemaP -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dum
   [ValidateSet('Y','N')] [string]$estimateOnly = 'Y'
 )
 
-##########################################################################################################
-function getDirectoryPath {
-  param( $cnx, $directoryName)
-
-
-  $thisFunction = '{0}' -f $MyInvocation.MyCommand
-  #write-output "`nThis is function $thisFunction"
-  #write-output "`nFind DATAPUMP directory path"
-  #Write-Output "`ndirectoryName is $directoryName"
-
-  $sql = @"
-set linesize 80
-set pages 0
-set feedback off
-set heading off
-set trimspool on
-col directory_path format a80 trunc
-select directory_path
-  from dba_directories
- where directory_name = upper(`'$directoryName`')
-/
-"@
-[string]$paf=($sql | sqlplus -S $cnx)
-return $paf
-}
-##########################################################################################################
-
 write-host "Parameters are :"
 write-host "    connectStr is $connectStr"
 write-host "        schema is $schema"
@@ -83,21 +62,11 @@ write-host "       content is $content"
 write-host "  estimateOnly is $estimateOnly"
 
 $thisScript = $MyInvocation.MyCommand
-
 write-host "ThisScript is $thisScript"
 $tstamp = get-date -Format 'yyyyMMddTHHmm'
+
+# Connection to instance
 $cnx = "dp/dpclv@$connectStr"
-
-<#
-# Find DATAPUMP directory path 
-[string]$directoryPath = getdirectoryPath $cnx $directoryName
-Write-Host ("`ndirectoryPath is $directoryPath")
-
-if ( $directoryPath.Length -eq 0 ) {
-   Write-Host ("No directoryPath foind for $directoryName")
-   exit
-}
-#>
 
 $job_name     = 'expdp_' + $schema
 $dumpfileName = $dumpfileName + '_' + "$tstamp"
@@ -148,7 +117,6 @@ ESTIMATE_ONLY=YES
 "@
 }
 
-write-host "parfile is $parfile"
 $parfile_txt | Out-File $parfile -encoding ascii
 Write-Host "`nexpdp parameter file content"
 gc $parfile

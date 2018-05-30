@@ -1,29 +1,54 @@
 ﻿<#	
 .SYNOPSIS
-ExpdpFullP.ps1 does a parallel Datapump export for specified database and schema
+ExpdpFullP.ps1 does a parallel full Datapump export for specified instance and schema
 	
 .DESCRIPTION
-ExpdpSchema uses Oracle utility Datapump to perform aschema dump and to zip it. 
+ExpdpFullP.ps1 uses Oracle 12c Datapump expdp utility in parallel mode. Produces p dumps, p being the parallel parameter. 
+ExpdpFullP.ps1 can run on the server hosting the instance or from a remote server through SQL*NET
+Should be run on instance host, as sys, if a coherent expdp dump is necessary. 
 
-.Parameter oracleSid
-oracleSid is mandatatory
+.Parameter connectStr
+SQL*NET string to connect to instance. Mandatory.
 
-.Parameter schema
-Oracle Schema to dump; Mandatory
+.Parameter connectAsSys
+to connect 'as SYS'. Only when script runs on database host. Possible values are 'Y','N'. Default is 'Y'. Mandatory.
+
+.Parameter coherent
+To ensure expdp dump is coherent. Possible values are 'Y','N'. Default is 'Y'. 
+
+.Parameter parallel
+number of parallel process for Datapump. Default is 4, min is 1, max is 8.
 
 .Parameter directory
-Datapump directory. Default is DATAPUMP
+Datapump directory. Default is DATAPUMP.
 
-.Parameter directoryPath
-Oracle datapump directory path. Default is Q:\Oracle
+.Parameter content
+Content to export. Possible values are 'ALL','DATA_ONLY','METADATA_ONLY'. Default is 'ALL'.
+
+.Parameter compressionAlgorithm
+Level of expdp dumps compression. Possible values are 'BASIC', 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
 
 .Parameter dumpfileName
-Oracle datapump dump filename. Default is expdp.
+dumps root filename. Default is expdp.
 
 .Parameter estimateOnly
-To estimate schema dump size. Default is Y.
+Estimates the expdp dumps size. No data is dumped. Possible values are 'Y','N'. Default is 'Y'.
 
-.Example ExpdpSchema.ps1 -oracleSid orasolifefev -schema clv61dev -directory datatemp -dumpfileName dev -estimateOnly Y	
+.INPUTS
+
+.OUTPUTS
+Log file in datapump directory
+Set of p expdp dumps
+
+.Example 
+ExpdpFullP -connectStr orcl -connectAsSys N -coherent N -dumpfileName orcl_full -estimateOnly N
+
+.Example 
+ExpdpFullP -connectStr orcl -connectAsSys Y -coherent Y -dumpfileName orcl_full -estimateOnly N
+
+.Example
+ExpdpFullP -connectStr orcl -connectAsSys Y -coherent Y -parallel 8 -directory DUMPTEMP -dumpFilename orcl_full -content all -compression high -estimateOnly n	
+
 #>
 
 [CmdletBinding()] param(
@@ -31,36 +56,10 @@ To estimate schema dump size. Default is Y.
   [Parameter(Mandatory=$True) ] [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
   [Parameter(Mandatory=$True) ] [string]$dumpfileName = 'expdp',
-  [Parameter(Mandatory=$True) ] [ValidateSet('Y','N')] [string]$coherent = 'Y',
-  [Parameter(Mandatory=$True) ] [ValidateSet('Y','N')] [string]$estimateOnly = 'Y',
-  [ValidateSet('Y','N')] [string]$connAsSys = 'N'
+  [ValidateSet('Y','N')] [string]$coherent = 'Y',
+  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y',
+  [Parameter(Mandatory=$True) ] [ValidateSet('Y','N')] [string]$connAsSys = 'N'
 )
-
-##########################################################################################################
-function getDirectoryPath {
-  param( $cnx, $directoryName)
-
-  $thisFunction = '{0}' -f $MyInvocation.MyCommand
-  #write-output "`nThis is function $thisFunction"
-  #write-output "`nFind DATAPUMP directory path"
-  #Write-Output "`ndirectoryName is $directoryName"
-
-  $sql = @"
-set linesize 80
-set pages 0
-set feedback off
-set heading off
-set trimspool on
-col directory_path format a80 trunc
-select directory_path
-  from dba_directories
- where directory_name = upper(`'$directoryName`')
-/
-"@
-[string]$paf=($sql | sqlplus -S $cnx)
-return $paf
-}
-##########################################################################################################
 
 write-host "Parameters are :"
 write-host "    connectStr is $connectStr"
@@ -85,7 +84,6 @@ if ( $connAsSys -eq 'Y' ) {
 else {
   $cnx = "dp/dpclv@$connectStr"
 }
-
 
 $job_name     = 'expdpfull_' + $connectStr
 $dumpfileName = $dumpfileName + '_' + "$tstamp"
@@ -138,7 +136,6 @@ if ( $coherent -eq 'Y' ) {
   $parfile_txt = $parfile_txt + "`nFLASHBACK_TIME=systimestamp"
 }
 
-write-host "parfile is $parfile"
 $parfile_txt | Out-File $parfile -encoding ascii
 Write-Host "`nexpdp parameter file content"
 gc $parfile

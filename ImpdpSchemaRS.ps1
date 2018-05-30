@@ -1,55 +1,77 @@
 <#	
 .SYNOPSIS
-ImpdpSchema.ps1 does q Datapump export for specified database and schema
+ImpdpSchemaRS_P.ps1 does a Datapump import with a remap_schema for specified instance and schema
 	
 .DESCRIPTION
-ImpdpSchema uses Oracle utility Datapump to perform aschema dump and to zip it. 
+ImpdpSchemaRS_P.ps1 uses Oracle 12c Datapump impdp utility with an expdp dump. 
+ImpdpSchemaRS_P.ps1 can run on the server hosting the instance or from a remote server through SQL*NET. Dumps must be available on the instance server.
 
-.Parameter oracleSid
-oracleSid is mandatatory
+.Parameter connectStr
+SQL*NET string to connect to instance. Mandatory.
 
-.Parameter schema
-Oracle Schema to dump; Mandatory
+.Parameter schemaOrg
+Schema remapped. Mandatory.
+
+.Parameter schemaDes
+Schema for remapping. Mandatory.
 
 .Parameter directory
-Datapump directory. Default is DATAPUMP
+Datapump directory. Default is DATAPUMP.
 
-.Parameter directoryPath
-Oracle datapump directory path. Default is Q:\Oracle
+.Parameter content
+Content to import. Possible values are 'ALL','DATA_ONLY','METADATA_ONLY'. Default is 'ALL'.
+
+.Parameter disableArchiveLogging
+To disable archive logging while import. Possible values are 'Y','N'. Default is 'Y'. 
+Parameter has no effect if instance runs in 'force logging' mode like Dataguard instances.
+
+.Parameter tableCompressionClause
+to compress tables being imported. Possible values are 'NONE','NOCOMPRESS','COMPRESS'. Default is 'NONE'.
 
 .Parameter dumpfileName
-Oracle datapump dump filename. Default is expdp.
+dump root filename. Default is expdp.
 
 .Parameter playOnly
-To run impdp without creating anything. Default is Y.
+to test the import. No data is imported. A sql file of the dump is created. Possible values are 'Y','N'. Default is 'Y'.
 
-.Example ImpdpSchema.ps1 -oracleSid orasolifefev -schema clv61dev -directory datatemp -dumpfilepath c:\
-temp -dumpfileName dev -estimateOnly Y	
+.INPUTS
+expdp dump.
+
+.OUTPUTS
+Log file in datapump directory
+SQL file in datapump directory when run with playOnly = 'Y'
+
+.Example 
+ImpdpSchemaRS_P -connectStr orcl -schemaOrg scott -schemaDes bernie -dumpFilename orcl_scott -playOnly n	
+	
+.Example
+ImpdpSchemaRS_P -connectStr orcl -schemaOrg scott -schemaDes bernie -directory DUMPTEMP -dumpFilename orcl_scott -content all -disableArchiveLogging Y -tableCompressionClause compress -playOnly n	
+
 #>
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True) ] [string]$connectStr,
-  [Parameter(Mandatory=$True) ] [string]$schemaOrg,  [Parameter(Mandatory=$True) ] [string]$schemaDes,  [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
+  [Parameter(Mandatory=$True) ] [string]$schemaOrg,  [Parameter(Mandatory=$True) ] [string]$schemaDes,  [string]$directory= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [string]$dumpfileName = 'expdp',
   [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
   [ValidateSet('NONE','NOCOMPRESS','COMPRESS')] [string]$tableCompressionClause = 'NONE',
-  [string]$playOnly = 'Y'
+  [ValidateSet('Y','N')] [string]$playOnly = 'Y'
 )
 
 write-host "Parameters are :"
-write-host "            connectStr is $connectStr"
-write-host "             schemaOrg is $schemaOrg"
-write-host "             schemaDes is $schemaDes"
-write-host "             directory is $directory"
-write-host "          dumpfileName is $dumpfileName"
-write-host "              playOnly is $playOnly"
-write-host " disableArchiveLogging is $disableArchiveLogging"
-write-host "tableCompressionClause is $tableCompressionClause"
+write-host "    connectStr is $connectStr"
+write-host "     schemaOrg is $schemaOrg"
+write-host "     schemaDes is $schemaDes"
+write-host "     directory is $directory"
+write-host "  dumpfileName is $dumpfileName"
+write-host "      playOnly is $playOnly"
 
-$thisSc
-write-host "ThisScript is $thisScript" 
+$thisScript = $MyInvocation.MyCommand
+write-host "ThisScript is $thisScript"
 $tstamp = get-date -Format 'yyyyMMddTHHmm'
+
+# Connection to instance
 $cnx = "dp/dpclv@$connectStr"
 
 $job_name = 'impdp_' + $schemaDes
@@ -68,7 +90,7 @@ If (Test-Path $parfile){
 
 if ( $playOnly -eq 'N' ) {
   $parfile_txt = @"
-JOB_NAME=impdp_$schemaDes
+JOB_NAME=$job_name
 DIRECTORY=$directory
 DUMPFILE=$dumpfile
 CONTENT=$content
@@ -83,7 +105,7 @@ TRANSFORM=TABLE_COMPRESSION_CLAUSE:$tableCompressionClause
 }
 else {
   $parfile_txt = @"
-JOB_NAME=impdp_$schemaDes
+JOB_NAME=$job_name
 DIRECTORY=$directory
 DUMPFILE=$dumpfile
 CONTENT=$content
@@ -94,7 +116,6 @@ LOGTIME=ALL
 "@
 }
 
-write-host "parfile is $parfile"
 $parfile_txt | Out-File $parfile -encoding ascii
 write-host "impdp parameter file content"
 gc $parfile
@@ -104,6 +125,7 @@ if ( $playOnly -eq 'N' ) {
   Write-Output "Recompute statistics for $schemaDes"
   $sql = @"
     set timing on
+    set echo on
     execute dbms_stats.gather_schema_stats('$schemaDes', degree=>DBMS_STATS.DEFAULT_DEGREE, cascade=>DBMS_STATS.AUTO_CASCADE, options=>'GATHER', no_invalidate=>False );
 "@
   $sql | sqlplus -S $cnx
