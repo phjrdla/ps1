@@ -22,7 +22,7 @@ Datapump directory. Default is DATAPUMP.
 Content to export. Possible values are 'ALL','DATA_ONLY','METADATA_ONLY'. Default is 'ALL'.
 
 .Parameter compressionAlgorithm
-Level of export dumps compression. Possible values are 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
+Level of export dumps compression. Possible values are 'BASIC', 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
 
 .Parameter dumpfileName
 dumps root filename. Default is expdp.
