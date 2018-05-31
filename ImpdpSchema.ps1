@@ -15,6 +15,12 @@ When specified, is taken as origin schema for "remap_schema" parameters.
 .Parameter schemaDes
 Schema to populate of for remapping. Mandatory. Destination schema for "remap_schema" parameters
 
+.Parameter tablespaceOrg
+When specified, is taken as origin tablespace for "remap_tablespace" parameters.
+
+.Parameter tablespaceDes
+when specified, is taken as destination tablespace for "remap_tablespace" parameters.
+
 .Parameter parallel
 number of parallel process for Datapump. Default is 4, min is 1, max is 8.
 impdp runs in serial mode when parallel = 1
@@ -58,18 +64,23 @@ ImpdpSchema -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -dir
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True) ] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
-  [ValidateLength(0,20)] [string]$schemaOrg = "",  [Parameter(Mandatory=$True) ] [ValidateLength(2,20)] [string]$schemaDes,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
+  [ValidateLength(0,20)] [string]$schemaOrg = "",  [Parameter(Mandatory=$True) ] [ValidateLength(2,20)] [string]$schemaDes,  [ValidateLength(0,20)] [string]$tspaceOrg = "",  [ValidateLength(0,20)] [string]$tspaceDes = "",  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [string]$dumpfileName = 'expdp',
   [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
-  [ValidateSet('NONE','NOCOMPRESS','COMPRESS','OLTP')] [string]$tableCompressionClause  = 'NONE',
+  [ValidateSet('NONE','NOCOMPRESS','COMPRESS','OLTP')] [string]$tableCompressionClause = 'NONE',
   [ValidateSet('Y','N')] [string]$playOnly = 'Y',
   [ValidateSet('Y','N')] [string]$showParameterFile = 'N'
 )
 
+$thisScript = $MyInvocation.MyCommand
+write-host "`nThisScript is $thisScript"
 write-host "Parameters are :"
 write-host "            connectStr is $connectStr"
 write-host "             schemaOrg is $schemaOrg"
+write-host "             schemaDes is $schemaDes"
+write-host "             tspaceOrg is $tspaceOrg"
+write-host "             tspaceDes is $tspaceDes"
 write-host "             schemaDes is $schemaDes"
 write-host "             directory is $directory"
 write-host "               content is $content"
@@ -79,10 +90,25 @@ write-host " disableArchiveLogging is $disableArchiveLogging"
 write-host "tableCompressionClause is $tableCompressionClause"
 write-host "              playOnly is $playOnly"
 
-$thisScript = $MyInvocation.MyCommand
-write-host "`nThisScript is $thisScript"
+#$tstamp = get-date -Format 'yyyyMMddTHHmm'
 
-$tstamp = get-date -Format 'yyyyMMddTHHmm'
+############################################################################################################################
+# Coherence control for remap_tablespace parameters
+############################################################################################################################
+$stateOrg = ($tspaceOrg.Length -gt 0)
+$stateDes = ($tspaceDes.Length -gt 0)
+
+if ( $stateOrg -and $stateDes ) {
+  $setupRemapTablespace = $TRUE
+}
+elseif ( !$stateOrg -and !$stateDes ) {
+  $setupRemapTablespace = $FALSE
+}
+else {
+  write-output "One of the remap tablespace parameters is not defined"
+  exit
+}
+############################################################################################################################
 
 # Connection to instance
 $cnx = "dp/dpclv@$connectStr"
@@ -155,6 +181,11 @@ if ( $schemaOrg -eq "" ) {
 }
 else {
   $parfile_txt = $parfile_txt + "`nREMAP_SCHEMA=$schemaOrg`:$schemaDes"
+}
+
+# Remap tablespace 
+if ( $setupRemapTablespace ) {
+  $parfile_txt = $parfile_txt + "`nREMAP_TABLESPACE=$tspaceOrg`:$tspaceDes"
 }
 ############################################################################################################################
 
