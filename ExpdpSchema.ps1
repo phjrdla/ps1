@@ -1,9 +1,9 @@
 <#	
 .SYNOPSIS
-ExpdpSchema.ps1 does a Datapump export for specified instance and schema
+ExpdpSchema.ps1 does a parallel Datapump export for specified instance and schema
 	
 .DESCRIPTION
-ExpdpSchema.ps1 uses Oracle 12c Datapump expdp utility. Produces a dump. 
+ExpdpSchema.ps1 uses Oracle 12c Datapump expdp utility in serial or parallel mode. Produces p dumps, p being the parallel parameter. 
 ExpdpSchema.ps1 can run on the server hosting the instance or from a remote server through SQL*NET
 
 .Parameter connectStr
@@ -12,6 +12,10 @@ SQL*NET string to connect to instance. Mandatory.
 .Parameter schema
 Schema to dump. Mandatory.
 
+.Parameter parallel
+number of parallel process for Datapump. Default is 4, min is 1, max is 8.
+expdp runs in serial mode when parallel = 1
+
 .Parameter directory
 Datapump directory. Default is DATAPUMP.
 
@@ -19,10 +23,10 @@ Datapump directory. Default is DATAPUMP.
 Content to export. Possible values are 'ALL','DATA_ONLY','METADATA_ONLY'. Default is 'ALL'.
 
 .Parameter compressionAlgorithm
-Level of expdp dump compression. Possible values are 'BASIC', 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
+Level of expdp dumps compression. Possible values are 'BASIC', 'LOW','MEDIUM','HIGH'. Default is 'MEDIUM'.
 
 .Parameter dumpfileName
-dump root filename. Default is expdp.
+dumps root filename. Default is expdp.
 
 .Parameter estimateOnly
 Estimates the dump size. No data is dumped. Possible values are 'Y','N'. Default is 'Y'.
@@ -31,18 +35,18 @@ Estimates the dump size. No data is dumped. Possible values are 'Y','N'. Default
 
 .OUTPUTS
 Log file in datapump directory
-expdp dump
+Set of p expdp dumps
 
 .Example 
-ExpdpSchema -connectStr orcl -schema scott -dumpfileName orcl_scott -estimateOnly Y
+ExpdpSchema -connectStr orcl -schema scott -parallel 1 -dumpfileName orcl_scott -estimateOnly Y
 
 .Example
-ExpdpSchema -connectStr orcl -schema scott -directory DUMPTEMP -dumpFilename orcl_scott -content all -compression high -estimateOnly n	
+ExpdpSchema -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dumpFilename orcl_scott -content all -compression high -estimateOnly n	
 #>
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True) ] [string]$connectStr,
-  [Parameter(Mandatory=$True) ] [string]$schema,  [string]$directoryName= 'DATAPUMP',
+  [Parameter(Mandatory=$True) ] [string]$schema,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directoryName= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
   [string]$dumpfileName = 'expdp',
@@ -67,7 +71,15 @@ $cnx = "dp/dpclv@$connectStr"
 
 $job_name     = 'expdp_' + $schema
 $dumpfileName = $dumpfileName + '_' + "$tstamp"
-$dumpfile     = $dumpfileName + '.dmp'
+
+# dump filename when dumping in parallel
+if ( $parallel -gt 1 ) {
+  $dumpfile  = $dumpfileName + '_%u.dmp'
+}
+else {
+  $dumpfile = $dumpfileName + '.dmp'
+}
+
 $logfile      = $dumpfileName + '.txt'
 $parfile      = $dumpfileName + '.par'
 
@@ -110,6 +122,11 @@ METRICS=Y
 LOGTIME=ALL
 ESTIMATE_ONLY=YES
 "@
+}
+
+# Add PARALLEL to parameter file when needed
+if ( $parallel -gt 1 ) {
+  $parfile_txt = $parfile_txt + "`nPARALLEL=$parallel";
 }
 
 $parfile_txt | Out-File $parfile -encoding ascii
