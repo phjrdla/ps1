@@ -10,10 +10,10 @@ ImpdpSchema.ps1 can run on the server hosting the instance or from a remote serv
 SQL*NET string to connect to instance. Mandatory.
 
 .Parameter schemaOrg
-Schema remapped. Mandatory.
+When specified, is taken as origin schema for "remap_schema" parameters.
 
 .Parameter schemaDes
-Schema for remapping. Mandatory.
+Schema to populate of for remapping. Mandatory. Destination schema for "remap_schema" parameters
 
 .Parameter parallel
 number of parallel process for Datapump. Default is 4, min is 1, max is 8.
@@ -46,16 +46,19 @@ Log file in datapump directory
 SQL file in datapump directory when run with playOnly = 'Y'
 
 .Example 
+ImpdpSchema -connectStr orcl -schemaDes bernie -dumpFilename orcl_bernie -playOnly n	
+
+.Example 
 ImpdpSchema -connectStr orcl -schemaOrg scott -schemaDes bernie -dumpFilename orcl_scott -playOnly n	
 	
 .Example
-ImpdpSchema -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -directory DUMPTEMP -dumpFilename orcl_scott -content all -disableArchiveLogging Y -tableCompressionClause compress -playOnly n	
+ImpdpSchema -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -directory DUMPTEMP -dumpFilename orcl_scott -content all -disableArchiveLogging Y -tableCompressionClause oltp -playOnly n	
 
 #>
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True) ] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
-  [Parameter(Mandatory=$True) ] [ValidateLength(0,20)] [string]$schemaOrg,  [Parameter(Mandatory=$True) ] [ValidateLength(2,20)] [string]$schemaDes,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
+  [ValidateLength(0,20)] [string]$schemaOrg = "",  [Parameter(Mandatory=$True) ] [ValidateLength(2,20)] [string]$schemaDes,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [string]$dumpfileName = 'expdp',
   [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
@@ -108,7 +111,6 @@ DIRECTORY=$directory
 DUMPFILE=$dumpfile
 CONTENT=$content
 LOGFILE=$logfile
-REMAP_SCHEMA=$schemaOrg`:$schemaDes
 TABLE_EXISTS_ACTION=TRUNCATE
 LOGTIME=ALL
 METRICS=Y
@@ -123,12 +125,14 @@ DUMPFILE=$dumpfile
 CONTENT=$content
 SQLFILE=$sqlfile
 LOGFILE=$logfile
-REMAP_SCHEMA=$schemaOrg`:$schemaDes
 LOGTIME=ALL
 TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
 "@
 }
 
+############################################################################################################################
+# Adapt impdp parameter file
+############################################################################################################################
 # Add PARALLEL to parameter file when needed
 if ( $parallel -gt 1 ) {
   $parfile_txt = $parfile_txt + "`nPARALLEL=$parallel";
@@ -141,6 +145,12 @@ if ( $tableCompressionClause -eq 'OLTP' ) {
 else {
   $parfile_txt = $parfile_txt + "`nTRANSFORM=TABLE_COMPRESSION_CLAUSE:$tableCompressionClause"
 }
+
+# Remap schema
+if ( $schemaOrg -ne "" ) {
+  $parfile_txt = $parfile_txt + "`nREMAP_SCHEMA=$schemaOrg`:$schemaDes"
+}
+############################################################################################################################
 
 $parfile_txt | Out-File $parfile -encoding ascii
 write-host "impdp parameter file content"
