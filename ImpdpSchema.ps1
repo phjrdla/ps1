@@ -63,26 +63,32 @@ ImpdpSchema -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -dir
   [string]$dumpfileName = 'expdp',
   [ValidateSet('N','Y')] [string]$disableArchiveLogging = 'Y',
   [ValidateSet('NONE','NOCOMPRESS','COMPRESS','OLTP')] [string]$tableCompressionClause  = 'NONE',
-  [ValidateSet('Y','N')] [string]$playOnly = 'Y'
+  [ValidateSet('Y','N')] [string]$playOnly = 'Y',
+  [ValidateSet('Y','N')] [string]$showParameterFile = 'N'
 )
 
 write-host "Parameters are :"
-write-host "    connectStr is $connectStr"
-write-host "     schemaOrg is $schemaOrg"
-write-host "     schemaDes is $schemaDes"
-write-host "     directory is $directory"
-write-host "  dumpfileName is $dumpfileName"
-write-host "      parallel is $parallel"
-write-host "      playOnly is $playOnly"
+write-host "            connectStr is $connectStr"
+write-host "             schemaOrg is $schemaOrg"
+write-host "             schemaDes is $schemaDes"
+write-host "             directory is $directory"
+write-host "               content is $content"
+write-host "          dumpfileName is $dumpfileName"
+write-host "              parallel is $parallel"
+write-host " disableArchiveLogging is $disableArchiveLogging"
+write-host "tableCompressionClause is $tableCompressionClause"
+write-host "              playOnly is $playOnly"
 
 $thisScript = $MyInvocation.MyCommand
-write-host "ThisScript is $thisScript"
+write-host "`nThisScript is $thisScript"
+
 $tstamp = get-date -Format 'yyyyMMddTHHmm'
 
 # Connection to instance
 $cnx = "dp/dpclv@$connectStr"
 
 $job_name = 'impdp_' + $schemaDes
+Write-Output "`njob_name is $job_name"
 
 # dump filename when dumping in parallel
 if ( $parallel -gt 1 ) {
@@ -96,12 +102,9 @@ $logfile  = $dumpfileName + '_2_' + $schemaDes + '.txt'
 $parfile  = $dumpfileName + '_2_' + $schemaDes + '.par'
 $sqlfile  = $dumpfileName + '_2_' + $schemaDes + '.sql'
 
-Write-Output "$dumpfile"
-Write-Output "job_name is $job_name"
-
 If (Test-Path $parfile){
   Remove-Item $parfile
-  Write-Host "Removed $parfile"
+  #Write-Host "Removed $parfile"
 }
 
 if ( $playOnly -eq 'N' ) {
@@ -147,15 +150,24 @@ else {
 }
 
 # Remap schema
-if ( $schemaOrg -ne "" ) {
+if ( $schemaOrg -eq "" ) {
+  $parfile_txt = $parfile_txt + "`nSCHEMAS=$schemaDes"
+}
+else {
   $parfile_txt = $parfile_txt + "`nREMAP_SCHEMA=$schemaOrg`:$schemaDes"
 }
 ############################################################################################################################
 
+# Make parmeter file usable by impdp
 $parfile_txt | Out-File $parfile -encoding ascii
-write-host "impdp parameter file content"
-gc $parfile
-#impdp $cnx parfile=$parfile
+
+if ( $showParameterfile -eq 'Y' ) {
+  write-host "`nimpdp parameter file content"
+  gc $parfile
+}
+
+# run Datapump i
+impdp $cnx parfile=$parfile
 
 if ( $playOnly -eq 'N' ) {
   Write-Output "Recompute statistics for $schemaDes"
