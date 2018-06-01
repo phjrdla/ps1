@@ -15,10 +15,10 @@ When specified, is taken as origin schema for "remap_schema" parameters.
 .Parameter schemaDes
 Schema to populate of for remapping. Mandatory. Destination schema for "remap_schema" parameters
 
-.Parameter tablespaceOrg
+.Parameter tspaceOrg
 When specified, is taken as origin tablespace for "remap_tablespace" parameters.
 
-.Parameter tablespaceDes
+.Parameter tspaceDes
 when specified, is taken as destination tablespace for "remap_tablespace" parameters.
 
 .Parameter parallel
@@ -143,6 +143,7 @@ LOGFILE=$logfile
 TABLE_EXISTS_ACTION=TRUNCATE
 LOGTIME=ALL
 METRICS=Y
+EXCLUDE=STATISTICS
 TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
 "@
 }

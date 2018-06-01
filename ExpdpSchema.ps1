@@ -31,6 +31,9 @@ dumps root filename. Default is expdp.
 .Parameter estimateOnly
 Estimates the dump size. No data is dumped. Possible values are 'Y','N'. Default is 'Y'.
 
+.Parameter showParameterFile
+To display expdp parameter file. Possible values are 'Y','N'. Default is 'N'.
+
 .INPUTS
 
 .OUTPUTS
@@ -45,33 +48,38 @@ ExpdpSchema -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dump
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True) ] [string]$connectStr,
-  [Parameter(Mandatory=$True) ] [string]$schema,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directoryName= 'DATAPUMP',
+  [Parameter(Mandatory=$True)] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
+  [Parameter(Mandatory=$True)] [ValidateLength(2,20)] [string]$schema,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory = 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
-  [ValidateSet('LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
+  [ValidateSet('BASIC','LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
   [string]$dumpfileName = 'expdp',
-  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y'
+  [ValidateSet('Y','N')] [string]$estimateOnly = 'Y',
+  [ValidateSet('Y','N')] [string]$showParameterFile = 'N'
 )
 
-write-host "Parameters are :"
-write-host "    connectStr is $connectStr"
-write-host "        schema is $schema"
-write-host " directoryName is $directoryName"
-write-host "  dumpfileName is $dumpfileName"
-write-host "      parallel is $parallel"
-write-host "       content is $content"
-write-host "  estimateOnly is $estimateOnly"
-
 $thisScript = $MyInvocation.MyCommand
-write-host "ThisScript is $thisScript"
-$tstamp = get-date -Format 'yyyyMMddTHHmm'
+write-host "`nThisScript is $thisScript"
+write-host "Parameters are :"
+write-host "          connectStr is $connectStr"
+write-host "              schema is $schema"
+write-host "           directory is $directory"
+write-host "             content is $content"
+write-host "        dumpfileName is $dumpfileName"
+write-host "            parallel is $parallel"
+write-host "             content is $content"
+Write-Host "compressionAlgorithm is $compressionAlgorithm"
+write-host "        estimateOnly is $estimateOnly"
+
+#$tstamp = get-date -Format 'yyyyMMddTHHmm'
+$tstamp = get-date -Format 'yyyyMMddTHH'
 
 # Connection to instance
 $cnx = "dp/dpclv@$connectStr"
 
-$job_name     = 'expdp_' + $schema
-$dumpfileName = $dumpfileName + '_' + "$tstamp"
+$job_name = 'expdp_' + $schema
+Write-Output "`njob_name is $job_name"
 
+$dumpfileName = $dumpfileName + '_' + "$tstamp"
 # dump filename when dumping in parallel
 if ( $parallel -gt 1 ) {
   $dumpfile  = $dumpfileName + '_%u.dmp'
@@ -83,19 +91,15 @@ else {
 $logfile      = $dumpfileName + '.txt'
 $parfile      = $dumpfileName + '.par'
 
-Write-Output "$dumpfile"
-Write-Output "$parfile"
-Write-Output "job_name is $job_name"
-
 If (Test-Path $parfile){
   Remove-Item $parfile
-  Write-Host "Removed $parfile"
+  #Write-Host "Removed $parfile"
 }
 
 if ( $estimateOnly -eq 'N' ) {
   $parfile_txt = @"
 JOB_NAME=$job_name
-DIRECTORY=$directoryName
+DIRECTORY=$directory
 DUMPFILE=$dumpfile
 CONTENT=$CONTENT
 COMPRESSION=ALL
@@ -107,12 +111,13 @@ SCHEMAS=$schema
 LOGTIME=ALL
 KEEP_MASTER=NO
 METRICS=Y
+EXCLUDE=STATISTICS
 "@
 }
 else {
   $parfile_txt = @"
 JOB_NAME=$job_name
-DIRECTORY=$directoryName
+DIRECTORY=$directory
 COMPRESSION=ALL
 FLASHBACK_TIME=systimestamp
 LOGFILE=$logfile
@@ -129,9 +134,13 @@ if ( $parallel -gt 1 ) {
   $parfile_txt = $parfile_txt + "`nPARALLEL=$parallel";
 }
 
+# Make parmeter file usable by expdp
 $parfile_txt | Out-File $parfile -encoding ascii
-Write-Host "`nexpdp parameter file content"
-gc $parfile
+
+if ( $showParameterfile -eq 'Y' ) {
+  write-host "`nexpdp parameter file content"
+  gc $parfile
+}
 
 expdp $cnx parfile=$parfile 
 
