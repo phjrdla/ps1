@@ -9,6 +9,12 @@ ExpdpSchema.ps1 can run on the server hosting the instance or from a remote serv
 .Parameter connectStr
 SQL*NET string to connect to instance. Mandatory.
 
+.Parameter dpUser
+Datapump user. Mandatory. 
+
+.Parameter dpPwd
+Datapump user password. Mandatory.
+
 .Parameter schema
 Schema to dump. Mandatory.
 
@@ -49,6 +55,8 @@ ExpdpSchema -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dump
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True)] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
+  [ValidateLength(2,12)] [string]$dpUser = 'dp',
+  [ValidateLength(4,12)] [string]$dpPwd = 'dpclv',
   [Parameter(Mandatory=$True)] [ValidateLength(2,20)] [string]$schema,  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory = 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [ValidateSet('BASIC','LOW','MEDIUM','HIGH')] [string]$compressionAlgorithm = 'MEDIUM',
@@ -61,6 +69,7 @@ $thisScript = $MyInvocation.MyCommand
 write-host "`nThisScript is $thisScript"
 write-host "Parameters are :"
 write-host "          connectStr is $connectStr"
+write-host "              dpUser is $dpUser"
 write-host "              schema is $schema"
 write-host "           directory is $directory"
 write-host "             content is $content"
@@ -74,7 +83,7 @@ write-host "        estimateOnly is $estimateOnly"
 $tstamp = get-date -Format 'yyyyMMddTHH'
 
 # Connection to instance
-$cnx = "dp/dpclv@$connectStr"
+$cnx = "$dpUser/$dpPwd@$connectStr"
 
 $job_name = 'expdp_' + $schema
 Write-Output "`njob_name is $job_name"

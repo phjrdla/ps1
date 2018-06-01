@@ -64,6 +64,8 @@ ImpdpSchema -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -dir
 
 [CmdletBinding()] param(
   [Parameter(Mandatory=$True) ] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
+  [ValidateLength(2,12)] [string]$dpUser = 'dp',
+  [ValidateLength(4,12)] [string]$dpPwd = 'dpclv',
   [ValidateLength(0,20)] [string]$schemaOrg = "",  [Parameter(Mandatory=$True) ] [ValidateLength(2,20)] [string]$schemaDes,  [ValidateLength(0,20)] [string]$tspaceOrg = "",  [ValidateLength(0,20)] [string]$tspaceDes = "",  [ValidateRange(1,8)] [int]$parallel = 4,  [string]$directory= 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',
   [string]$dumpfileName = 'expdp',
@@ -77,6 +79,7 @@ $thisScript = $MyInvocation.MyCommand
 write-host "`nThisScript is $thisScript"
 write-host "Parameters are :"
 write-host "            connectStr is $connectStr"
+write-host "                dpUser is $dpUser"
 write-host "             schemaOrg is $schemaOrg"
 write-host "             schemaDes is $schemaDes"
 write-host "             tspaceOrg is $tspaceOrg"
@@ -111,7 +114,7 @@ else {
 ############################################################################################################################
 
 # Connection to instance
-$cnx = "dp/dpclv@$connectStr"
+$cnx = "$dpUser/$dpPwd@$connectStr"
 
 $job_name = 'impdp_' + $schemaDes
 Write-Output "`njob_name is $job_name"
@@ -143,7 +146,6 @@ LOGFILE=$logfile
 TABLE_EXISTS_ACTION=TRUNCATE
 LOGTIME=ALL
 METRICS=Y
-EXCLUDE=STATISTICS
 TRANSFORM=DISABLE_ARCHIVE_LOGGING:$disableArchiveLogging
 "@
 }
