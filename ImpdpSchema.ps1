@@ -89,7 +89,6 @@ write-host "             schemaOrg is $schemaOrg"
 write-host "             schemaDes is $schemaDes"
 write-host "             tspaceOrg is $tspaceOrg"
 write-host "             tspaceDes is $tspaceDes"
-write-host "             schemaDes is $schemaDes"
 write-host "             directory is $directory"
 write-host "               content is $content"
 write-host "          dumpfileName is $dumpfileName"
@@ -98,7 +97,7 @@ write-host " disableArchiveLogging is $disableArchiveLogging"
 write-host "tableCompressionClause is $tableCompressionClause"
 write-host "              playOnly is $playOnly"
 
-#$tstamp = get-date -Format 'yyyyMMddTHHmm'
+$tstamp = get-date -Format 'yyyyMMddTHHmm'
 
 ############################################################################################################################
 # Coherence control for remap_tablespace parameters
@@ -207,6 +206,13 @@ if ( $showParameterfile -eq 'Y' ) {
 
 # run Datapump i
 impdp $cnx parfile=$parfile
+
+# record in history file
+$histRec = @"
+impdp, $tstamp, $connectStr, $schemaOrg, $schemaDes, $parallel, $content, $dumpfileName, $tableCompressionClause, $tspaceOrg, $tspaceDes,$playOnly
+"@
+$histRec | Out-File 'c:\temp\datapump.txt' -Append
+
 
 if ( $playOnly -eq 'N' ) {
   Write-Output "Recompute statistics for $schemaDes"

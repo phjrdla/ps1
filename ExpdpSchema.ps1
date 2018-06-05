@@ -153,6 +153,12 @@ if ( $showParameterfile -eq 'Y' ) {
   gc $parfile
 }
 
+# record in history file
+$histRec = @"
+expdp, $tstamp, $connectStr, $schema, $parallel, $content, $dumpfileName, $compressionAlgorithm
+"@
+$histRec | Out-File 'c:\temp\datapump.txt' -Append
+
 expdp $cnx parfile=$parfile 
 
-#expdp `'$cnx`' parfile=$parfile 2>&1 | % { "$_" }
+
