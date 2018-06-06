@@ -9,6 +9,12 @@ ImpdpSchema.ps1 can run on the server hosting the instance or from a remote serv
 .Parameter connectStr
 SQL*NET string to connect to instance. Mandatory.
 
+.Parameter dpUser
+Datapump user. Mandatory. 
+
+.Parameter dpPwd
+Datapump user password. Mandatory.
+
 .Parameter schemaOrg
 When specified, is taken as origin schema for "remap_schema" parameters.
 
@@ -212,7 +218,6 @@ $histRec = @"
 impdp, $tstamp, $connectStr, $schemaOrg, $schemaDes, $parallel, $content, $dumpfileName, $tableCompressionClause, $tspaceOrg, $tspaceDes,$playOnly
 "@
 $histRec | Out-File 'c:\temp\datapump.txt' -Append
-
 
 if ( $playOnly -eq 'N' ) {
   Write-Output "Recompute statistics for $schemaDes"
