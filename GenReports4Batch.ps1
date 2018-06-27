@@ -128,6 +128,13 @@ WHERE rownum <= 3
 }
 ##########################################################################################################
 
+##########################################################################################################
+function getReportName {
+  param( $reportDir, $schema, $reportName, $timeStamp)
+  $reportOut = $reportDir + '\' + $schema + '_' + $reportName + '_'  + $tstamp + '.html' 
+  return $reportOut
+}
+##########################################################################################################
 
 $thisScript = $MyInvocation.MyCommand
 write-host "ThisScript is $thisScript"
@@ -142,17 +149,17 @@ if ( ! (Test-Path $reportDir) ) {
   exit 1
 }
 
-$tstamp = get-date -Format 'yyyyMMdd-hhmmss'
+$tstamp = get-date -Format 'yyyyMMddThhmmss'
 #write-host "time is $tstamp"
 
 # Connect as sys
 $cnx = '/ as sysdba'
 
-$reportOut = $reportDir + '\ListBatches.html'
+$reportOut = getReportName $reportDir $schema 'ListBatches' $tstamp 
 write-host "$reportOut"
 ListBatches $cnx $schema $reportOut >  $reportOut
 
-$reportOut = $reportDir + '\Valuation.html'
+$reportOut = getReportName $reportDir $schema 'Valuation' $tstamp 
 write-host "$reportOut"
 Valuation $cnx $schema $reportOut >  $reportOut
 

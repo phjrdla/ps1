@@ -69,7 +69,7 @@ ImpdpSchema -connectStr orcl -parallel 8 -schemaOrg scott -schemaDes bernie -dir
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True) ] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
+  [Parameter(Mandatory=$True) ] [ValidateLength(4,20)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
   [ValidateLength(2,12)] [string]$dpUser = 'dp',
   [ValidateLength(4,12)] [string]$dpPwd = 'dpclv',
   [ValidateLength(0,20)] [string]$schemaOrg = "",

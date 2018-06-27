@@ -54,10 +54,10 @@ ExpdpSchema -connectStr orcl -parallel 8 -schema scott -directory DUMPTEMP -dump
 #>
 
 [CmdletBinding()] param(
-  [Parameter(Mandatory=$True)] [ValidateLength(4,12)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
+  [Parameter(Mandatory=$True)] [ValidateLength(4,20)] [ValidatePattern('^[a-zA-Z]+[a-zA-B0-9]+')] [string]$connectStr,
   [ValidateLength(2,12)] [string]$dpUser = 'dp',
   [ValidateLength(4,12)] [string]$dpPwd = 'dpclv',
-  [Parameter(Mandatory=$True)] [ValidateLength(2,20)] [string]$schema,
+  [Parameter(Mandatory=$True)] [ValidateLength(2,40)] [string]$schema,
   [ValidateRange(1,8)] [int]$parallel = 4,
   [string]$directory = 'DATAPUMP',
   [ValidateSet('ALL','DATA_ONLY','METADATA_ONLY')] [string]$content = 'ALL',

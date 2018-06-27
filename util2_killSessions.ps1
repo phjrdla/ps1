@@ -1,16 +1,19 @@
 <#	
 .SYNOPSIS
-lockUsers script invokes pl/sql procedure solife_util2.killSessions
+util2_killSessions.ps1 kills all Oracle sessions except those owned by Oracle users SYS, SYSTEM and OPCON.
+util2_killSessions runs on the same host as the Oracle instance it manages.
 	
 .DESCRIPTION
+util2_killSessions uses pl/sql procedure solife_util2.killSessions
 
+.Parameter oracleSid
+ORACLE_SID of Oracle Solife instance. Mandatory.
 
-.Parameters oracleSid
-oracleSid is used to setup Oracle environment variable ORACLE_SID
-mode is used to choose the type of run, 'FALSE' for a simulation, 'TRUE' for a live run
+.Parameter mode
+Defines type of run. False for atest run, True for a live run. Possible values are 'TRUE', 'FALSE'. Default is 'FALSE'
 
-
-.Example util2.lockUsers -oracleSid orasolifedev -schema clv61dev -mode 'FALSE'		
+.Example 
+util2_killSessions -oracleSid orasolifedev -mode 'FALSE'		
 #>
 
 [CmdletBinding()] param(

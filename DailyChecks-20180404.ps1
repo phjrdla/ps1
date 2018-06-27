@@ -14,81 +14,6 @@ write-output "Daily checks for $connectStr on $tstamp"
 write-output '##########################################################################################################'
 
 ##########################################################################################################
-function ShowDgmgrlConf {
-  param ( $cnx )
-
-  $thisFunction = '{0}' -f $MyInvocation.MyCommand
-  write-output `n"This is function $thisFunction"
-  write-output "`Show data guard broker configuration"
-
-
-  # Run dgmgrl show configuration command
-  dgmgrl $cnx 'show configuration verbose;'
-  
-}
-
-ShowDgmgrlConf $cnx 'show configuration verbose;'
-
-##########################################################################################################
-function ShowDataguardStatus {
-  param ( $cnx )
-
-  $thisFunction = '{0}' -f $MyInvocation.MyCommand
-  write-output `n"This is function $thisFunction"
-  write-output "`Show Dataguard status"
-
-  # Corruped blocks
-  $sql = @"
-set serveroutput off
-set heading on
-set pagesize 200
-set lines 200
-column message format a100 wrap
-column TSTAMP format A17
-select facility, severity, message_num, error_code, callout
-      ,to_char(timestamp, 'DD/MM/YY HH24:MI:SS') TSTAMP
-      ,message
-  from v`$dataguard_status
- order by message_num desc
- fetch first 50 rows only
-/
-"@
-
-  # Run sqlplus script
-  $sql | sqlplus -S $cnx
-  
-}
-
-ShowDataguardStatus $cnx
-
-##########################################################################################################
-function ShowDataguardConfig {
-  param ( $cnx )
-
-  $thisFunction = '{0}' -f $MyInvocation.MyCommand
-  write-output `n"This is function $thisFunction"
-  write-output "`Show Dataguard config"
-
-  # Corruped blocks
-  $sql = @"
-set serveroutput off
-set heading on
-set pagesize 10
-set lines 120
-col CURRENT_SCN	format 999999999999999
-select *
-  from v`$dataguard_config
-/
-"@
-
-  # Run sqlplus script
-  $sql | sqlplus -S $cnx
-  
-}
-
-ShowDataguardConfig $cnx
-
-##########################################################################################################
 function CheckOracleServices {
    # Oracle Listeners
   write-output "`nOracle listeners running"
@@ -105,7 +30,7 @@ function CheckOracleServices {
   Get-Service OracleService* | where { $_.Status -eq 'Stopped' } | format-table Status, Name, DisplayName
 }
 
-CheckOracleServices
+#CheckOracleServices
 
 ##########################################################################################################
 function CheckDbHealth {
@@ -276,24 +201,7 @@ fetch first 20 rows only
   $sql | sqlplus -S $cnx
 }
 
-Last20Backup $cnx
- 
-##########################################################################################################
-function ListRmanBackup {
-  param( $cnx )
-
-  $thisFunction = '{0}' -f $MyInvocation.MyCommand
-  write-output "`nThis is function $thisFunction"
-  write-output "`nListing Rman backups younger than a week"
-
-  $sql = @"
-connect target $cnx
-list backup summary completed after 'sysdate - 8';
-"@
-  $sql | rman
-}
-
-ListRmanBackup $cnx
+Last20Backup $cnx 
 
 ##########################################################################################################
 function CheckResourceUse {
@@ -502,7 +410,7 @@ else {
 ##########################################################################################################
 function CheckORAGeneric {
   param( [Parameter(Mandatory=$True) ] $cnx,
-         [int]$nol = 1000  )
+         [int]$nol = 100  )
 
   $thisFunction = '{0}' -f $MyInvocation.MyCommand
   write-output "`nThis is function $thisFunction"
@@ -522,21 +430,10 @@ select value
  where name = 'Diag Trace'
 /
 "@
+
   [string]$tracePath = $sql | sqlplus -S $cnx
 
-# Instance name
-  $sql = @"
-set pagesize 0
-set lines 100
-set feedback off
-set trimspool on
-select instance_name
-  from v`$instance
-/
-"@
-  [string]$instance_name = $sql | sqlplus -S $cnx
-
-  $alertLog = "$tracePath\alert_$instance_name.log"
+  $alertLog = "$tracePath\alert_$connectStr.log"
   If ( -not (Test-Path $alertLog) ) { 
     write-error "Could not find $alertLog, exit"
    return
@@ -559,14 +456,22 @@ select instance_name
   
 }
 
-if ( $host_name -match $computerName ) {
-  CheckORAGeneric $cnx
-} 
-else {
-  Write-Output "Alert log is on remote server $host_name"
-}
+#CheckORAGeneric $cnx 
 
 write-output '##########################################################################################################'
 $tstamp = get-date -Format 'yyyyMMdd-hhmmss'
 write-output "End of daily checks for $connectStr on $tstamp"
 write-output '##########################################################################################################'
+
+
+
+
+
+
+
+
+
+
+
+
+
